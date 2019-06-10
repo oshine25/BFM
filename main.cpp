@@ -1,5 +1,6 @@
 
 #include "bloomfilter.h"
+//#include "BloomFilterOperations.cpp"
 
 //Bloom filter constructor
 /*---------------------Bloom Filter parameters------------------------*/
@@ -19,7 +20,7 @@ false_positive_probability(error)
 void BloomParams::createParams(){
     filter_size= -1.0*num_elements*log(false_positive_probability)/pow(log(2.0),2.0);
     num_hashes=(uint8_t)filter_size*log(2.0)/num_elements;
-    cout<<unsigned(num_hashes);
+    //cout<<unsigned(num_hashes);
 }
 
 BloomParams& BloomParams::operator=(const BloomParams& other) {
@@ -49,16 +50,16 @@ false_positive_probability(params.false_positive_probability)
     }
 }
 
-BloomFilter::BloomFilter(const BloomFilter& filter):
+/*BloomFilter::BloomFilter(const BloomFilter& filter):
 num_elements(filter.num_elements),
 num_hashes(filter.num_hashes),
 filter_size(filter.filter_size),
 false_positive_probability(filter.false_positive_probability),
 bloom(filter.bloom)
-{}
+{}*/
 
 BloomFilter::BloomFilter(size_t size, uint8_t numHashes)
-: m_bits(size),
+: bloom(size),
 num_hashes(numHashes) {}
 
 BloomFilter::BloomFilter(size_t size)
@@ -92,11 +93,11 @@ vector<size_t> BloomFilter::bloomVector(const string data, int len) {
     for (int n = 0; n < num_hashes; n++)
     {
         uint64_t hashResult = ::nthHash(n, hashValues[0], hashValues[1], m_bits.size());
-        //cout<<unsigned(hashResult)<<" ";
+        cout<<int(hashResult)<<" ";
         arrayResult.push_back(hashResult);
        // m_bits[nthHash(n, hashValues[0], hashValues[1], m_bits.size())] = true;
     }
-  //cout<<"\n"<<"*********************"<<endl;
+  cout<<"\n"<<"*********************"<<endl;
     return arrayResult;
 }
 
@@ -115,31 +116,46 @@ vector<size_t> BloomFilter::bloomVector(const string data, int len) {
 }*/
 
 //Returns true or false based on a probabilistic assesment of the array in Bloom Filter Matrix
-bool BloomFilter::contains(const vector<string> &data)
+bool BloomFilter::contains(const vector<string> data)
 {
+
+    BloomParams param(7);
+    uint8_t numhash = param.num_hashes;
     vector<uint8_t> adata;
-    cout<<data.size()<<endl;
-    for(int i=0;i<data.size();i++)
+    //cout<<data.size()<<endl;
+    
+    //for(int i=0;i<data.size();i++)
+    int startCtr = 0;
+    if (data.size() > 2) {
+        startCtr=(int)data.size()-2;
+    }
+    
+    for(int i=startCtr;i<data.size();i++)
     {
-        cout<<"hash numbers:"<<unsigned(num_hashes)<<endl;
-        cout<<"-------"<<endl;
-        
-        array<uint64_t, 2> hashValues = myhash (&data.at(i), (int)data.size());
-        for (int n = 0; n < num_hashes; n++)
+        cout<<data[i]<<endl;
+        array<uint64_t, 2> hashValues = myhash (&data[i], (int)data[i].size());
+        for (int n = 0; n < numhash; n++)
         {
-            size_t hashResult = ::nthHash(n, hashValues[0], hashValues[1], 71);
+            uint64_t hashResult = ::nthHash(n, hashValues[0], hashValues[1], 100);
           //  cout<< hashResult<<((i == num_hashes-1) ? "\n" :",");
+            //cout<<hashResult<<endl;
             adata.push_back(hashResult);
-           cout<< unsigned(adata[n])<<" ";
+           
         }
+        
+       for(int i=0;i<adata.size();i++)
+        {
+             cout<< int(adata[i])<<" ";
+        }
+        cout<<"------------"<<endl;
     }
 
         for(int j=0;j<adata.size();j++)
         {
             //cout<<adata[j];
-            for(int k=j+num_hashes;j<adata.size();k++)
+            for(int k=j+numhash;k<adata.size();k++)
             {
-                if(bloom[j][k]!=true)
+                if(bloom[adata[j]][adata[k]]!=true)
                 {
                     return false;
                 }
@@ -155,13 +171,14 @@ void BloomFilter::insertBFM(size_t atr1,size_t atr2)
     bloom[atr1][atr2]=true;
 }
 
-void createBloomFilterA(vector<DataOwnerA> dataArray)
+BloomFilter createBloomFilterA(vector<DataOwnerA> dataArray)
 {
     int i;
     int counter=0;
     BloomParams param(7);
     BloomFilter bfi(param);
     BloomFilter bfn(param);
+    bool Contains=false;
     
   //  BloomFilter bfa(1024, 7);
     BloomFilter bfm(1024);
@@ -177,6 +194,7 @@ void createBloomFilterA(vector<DataOwnerA> dataArray)
         
         for(int j=0;j<ida.size() && j< name.size();j++)
         {
+           // cout<<"id :"<<ida[j]<<","<<"name :"<<name[j]<<endl;
                 bfm.insertBFM(ida[j],name[j]);  //defines their inner relation of the attributes and their existence
         }
     }
@@ -187,8 +205,17 @@ void createBloomFilterA(vector<DataOwnerA> dataArray)
         //bool possiblyContains  = bfi.possiblyContains((uint8_t*)dataArray[i].Id.c_str(), (int)dataArray[i].Id.size());
         queryArr.push_back(dataArray[i].Id.c_str());
         queryArr.push_back(dataArray[i].Name.c_str());
+        Contains = bfm.contains(queryArr);
         
-      bool Contains = bfm.contains(queryArr);
+        cout<<Contains<<endl;
+    }
+
+    for(int j=0;j<queryArr.size();j++)
+    {
+         cout << queryArr[j]<<" ";
+    }
+    
+      //bool Contains = bfm.contains(queryArr);
         
         if(Contains==true)
         {
@@ -196,18 +223,19 @@ void createBloomFilterA(vector<DataOwnerA> dataArray)
         }
     
       //  cout<<"contains:"<<Contains<<endl;
-    }
     
+    return bfm;
 }
 
 
-void createBloomFilterB(vector<DataOwnerB> dataArray)
+BloomFilter createBloomFilterB(vector<DataOwnerB> dataArray)
 {
     int i;
     int counter=0;
     BloomParams param(7);
     BloomFilter bfi(param);
     BloomFilter bfn(param);
+    bool Contains=false;
     
     //  BloomFilter bfa(1024, 7);
     BloomFilter bfmB(1024);
@@ -223,6 +251,7 @@ void createBloomFilterB(vector<DataOwnerB> dataArray)
         
         for(int j=0;j<ida.size() && j< name.size();j++)
         {
+            // cout<<"id :"<<ida[j]<<","<<"name :"<<name[j]<<endl;
             bfmB.insertBFM(ida[j],name[j]);  //defines their inner relation of the attributes and their existence
         }
     }
@@ -233,17 +262,26 @@ void createBloomFilterB(vector<DataOwnerB> dataArray)
         //bool possiblyContains  = bfi.possiblyContains((uint8_t*)dataArray[i].Id.c_str(), (int)dataArray[i].Id.size());
         queryArr.push_back(dataArray[i].Id.c_str());
         queryArr.push_back(dataArray[i].Name.c_str());
+        Contains = bfmB.contains(queryArr);
         
-        bool Contains = bfmB.contains(queryArr);
-        
-        if(Contains==true)
-        {
-            counter++;
-        }
-        
-        //  cout<<"contains:"<<Contains<<endl;
+        cout<<Contains<<endl;
     }
-  
+    
+    for(int j=0;j<queryArr.size();j++)
+    {
+        cout << queryArr[j]<<" ";
+    }
+    
+    //bool Contains = bfm.contains(queryArr);
+    
+    if(Contains==true)
+    {
+        counter++;
+    }
+    
+    //  cout<<"contains:"<<Contains<<endl;
+    
+    return bfmB;
 }
 
 
@@ -253,24 +291,30 @@ using namespace std;
 
 int main()
 {
-    BloomFilter bfm(1024);
-    
+    BloomFilter bfmA(1024);
+    BloomFilter bfmB(1024);
    // vector<int> srr = {5,6,7,8};
  
    // std::vector<string> s = {"abcd","addfgh"};T.Luo
     vector<DataOwnerA> dataArrayA = DataOwnerA::populate("/Users/rumishakya/Documents/Xcode/BF/BloomFilter/BloomFilter/DataSetA.csv");
     vector<DataOwnerB> dataArrayB = DataOwnerB::populate("/Users/rumishakya/Documents/Xcode/BF/BloomFilter/BloomFilter/DataSetA.csv");
+    clock_t begin = clock();
+    BloomFilter bf1=createBloomFilterA(dataArrayA);
+    clock_t end = clock();
+    cout<<"***********"<<" ";
+    cout<<"Time taken: "<<end<<endl;
+    BloomFilter bf2=createBloomFilterB(dataArrayB);
     
-    createBloomFilterA(dataArrayA);
-    createBloomFilterB(dataArrayB);
+   // BloomFilter bf3=
+   // BloomFilterOperations::orOperation(bf1,bf2);
     
-    for (size_t i = 0, e = bfm.getBitValue().size(); i < e; ++i){
-       // vector<bool> *arr1=&bfm.getBitValue()[i];
-      // cout << arr1 << ((i == e-1) ? "\n" :",");
+    for (size_t i = 0, e = bfmA.getBitValue().size(); i < e; ++i){
+        vector<bool> *arr1=&bfmA.getBitValue()[i];
+       // cout << arr1 << ((i == e-1) ? "\n" :",");
     }
-  
-    
- 
+
 }
+
+
 
 
